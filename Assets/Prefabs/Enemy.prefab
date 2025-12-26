@@ -744,8 +744,8 @@ CapsuleCollider2D:
   m_IsTrigger: 1
   m_UsedByEffector: 0
   m_UsedByComposite: 0
-  m_Offset: {x: 0, y: 0}
-  m_Size: {x: 2.8, y: 2.8}
+  m_Offset: {x: 0, y: -0.1}
+  m_Size: {x: 1, y: 1.6}
   m_Direction: 0
 --- !u!114 &8118665227663190575
 MonoBehaviour:
@@ -768,20 +768,29 @@ MonoBehaviour:
     maxMana: 100
     currentStamina: 100
     maxStamina: 100
-    strength: 2
-    resistence: 2
+    strength: 4
+    resistence: 1
     intelligence: 1
     willpower: 1
-    damage: 2
-    defense: 2
+    damage: 4
+    defense: 1
     speed: 1
+    points: 0
     attackDistance: 0.5
     attackTimer: 1
     cooldown: 2
-    inCombat: 0
+    inCombat: 1
     target: {fileID: 0}
     combatCoroutine: 0
     dead: 0
+    maxAmmo: 10
+    currentAmmo: 10
+    reserveAmmo: 0
+    bulletRange: 10
+    entityAudio: {fileID: 0}
+    healthBar: {fileID: 0}
+    expReward: 300
+    goldReward: 0
   manager: {fileID: 0}
   waypointList:
   - {fileID: 0}
@@ -789,10 +798,16 @@ MonoBehaviour:
   arrivalDistance: 0.5
   waitTime: 5
   waypointID: 1
-  rewardExperience: 10
+  player: {fileID: 0}
+  chaseRange: 8
+  stopDistance: 0.5
+  permanentChase: 0
+  damage: 10
+  attackCooldown: 1.5
+  rewardExperience: 100
   lootGoldMin: 1
   lootGoldMax: 10
   prefab: {fileID: 4418104307017296868}
-  respawn: 1
-  respawnTime: 10
+  respawn: 0
+  respawnTime: 0
   healthSlider: {fileID: 2055004368}

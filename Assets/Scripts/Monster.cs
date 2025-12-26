@@ -2,246 +2,312 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
- 
+
 [RequireComponent(typeof(Rigidbody2D))]
 [RequireComponent(typeof(Animator))]
 public class Monster : MonoBehaviour
 {
     [Header("Controller")]
     public Entity entity;
+    // Eventos para spawn e morte
+    public static System.Action<Monster> OnMonsterSpawned;
+    public static System.Action<Monster> OnMonsterDied;
+
     public GameManager manager;
- 
+    public static System.Action<int> OnAliveMonstersChanged;
+    public static int aliveMonsters = 0;
+
     [Header("Patrol")]
-    public List<Transform> waypointList;
+    public List<Transform> waypointList = new List<Transform>();
     public float arrivalDistance = 0.5f;
-    public float waitTime = 5;
+    public float waitTime = 3f;
     public int waypointID;
- 
-    // Privates
-    Transform targetWapoint;
-    int currentWaypoint = 0;
-    float lastDistanceToTarget = 0f;
-    float currentWaitTime = 0f;
- 
-    [Header("Experience Reward")]
-    public int rewardExperience = 10;
+
+    private Transform targetWaypoint;
+    private int currentWaypoint = 0;
+    private float currentWaitTime = 0f;
+    private float lastDistanceToTarget = 0f;
+
+    [Header("Chase Settings")]
+    public Transform player;
+    public float chaseRange = 10f;
+    public float stopDistance = 1.5f;
+    public bool permanentChase = true;
+
+    [Header("Attack Settings")]
+    public int damage = 10;
+    public float attackCooldown = 1.5f;
+    private bool canAttack = true;
+
+    [Header("Experience & Loot")]
+    public int rewardExperience = 15;
     public int lootGoldMin = 0;
     public int lootGoldMax = 10;
- 
+
     [Header("Respawn")]
     public GameObject prefab;
     public bool respawn = true;
     public float respawnTime = 10f;
- 
+
     [Header("UI")]
     public Slider healthSlider;
- 
-    Rigidbody2D rb2D;
-    Animator animator;
- 
-    private void Start()
+
+    private Rigidbody2D rb2D;
+    private Animator anim;
+    private Vector2 movement;
+
+    void Start()
     {
         rb2D = GetComponent<Rigidbody2D>();
-        animator = GetComponent<Animator>();
-        manager = GameObject.Find("GameManager").GetComponent<GameManager>();
- 
-        entity.maxHealth = manager.CalculateHealth(entity);
-        entity.maxMana = manager.CalculateMana(entity);
-        entity.maxStamina = manager.CalculateStamina(entity);
- 
+        rb2D.isKinematic = false;
+        anim = GetComponent<Animator>();
+
+        manager = GameObject.FindObjectOfType<GameManager>();
+
+        
+        if (player == null)
+            player = GameObject.FindWithTag("Player")?.transform;
+
+      
+        if (manager != null)
+        {
+            entity.maxHealth = manager.CalculateHealth(entity);
+            entity.maxMana = manager.CalculateMana(entity);
+            entity.maxStamina = manager.CalculateStamina(entity);
+        }
+
         entity.currentHealth = entity.maxHealth;
         entity.currentMana = entity.maxMana;
         entity.currentStamina = entity.maxStamina;
- 
-        healthSlider.maxValue = entity.maxHealth;
-        healthSlider.value = healthSlider.maxValue;
- 
+
+        if (healthSlider != null)
+        {
+            healthSlider.maxValue = entity.maxHealth;
+            healthSlider.value = entity.currentHealth;
+        }
+
+        
         foreach (GameObject obj in GameObject.FindGameObjectsWithTag("Waypoint"))
         {
-            int ID = obj.GetComponent<WaypointID>().ID;
-            if (ID == waypointID)
-            {
+            WaypointID idComponent = obj.GetComponent<WaypointID>();
+            if (idComponent != null && idComponent.ID == waypointID)
                 waypointList.Add(obj.transform);
-            }
         }
- 
-        currentWaitTime = waitTime;
-        if(waypointList.Count > 0)
+
+        if (waypointList.Count > 0)
         {
-            targetWapoint = waypointList[currentWaypoint];
-            lastDistanceToTarget = Vector2.Distance(transform.position, targetWapoint.position);
+            targetWaypoint = waypointList[currentWaypoint];
+            lastDistanceToTarget = Vector2.Distance(transform.position, targetWaypoint.position);
         }
+
+        currentWaitTime = waitTime;
     }
- 
-    private void Update()
+
+    void Update()
     {
-        if (entity.dead)
+        if (entity.dead) return;
+
+        
+        if (manager != null && manager.paused)
+        {
+            
+            if (anim != null) anim.speed = 0f;
             return;
- 
-        if(entity.currentHealth <= 0)
+        }
+        else
+        {
+            if (anim != null) anim.speed = 1f;
+        }
+
+        
+        if (healthSlider != null)
+            healthSlider.value = entity.currentHealth;
+
+
+        if (entity.currentHealth <= 0)
         {
             entity.currentHealth = 0;
             Die();
+            return;
         }
- 
-        healthSlider.value = entity.currentHealth;
- 
-        if (!entity.inCombat)
+
+        float distanceToPlayer = player != null ? Vector2.Distance(transform.position, player.position) : Mathf.Infinity;
+
+
+        if (distanceToPlayer <= chaseRange)
         {
-            if(waypointList.Count > 0)
+            entity.inCombat = true;
+            MoveTowardsTarget(player);
+            // ➕ Adicione esta parte:
+            if (distanceToPlayer <= stopDistance && canAttack)
             {
-                Patrol();
-            }
-            else
-            {
-                animator.SetBool("isWalking", false);
+            StartCoroutine(Attack(player));
             }
         }
         else
         {
-            if (entity.attackTimer > 0)
-                entity.attackTimer -= Time.deltaTime;
- 
-            if (entity.attackTimer < 0)
-                entity.attackTimer = 0;
- 
-            if(entity.target != null && entity.inCombat)
-            {
-                // atacar
-                if (!entity.combatCoroutine)
-                    StartCoroutine(Attack());
-            }
-            else
-            {
-                entity.combatCoroutine = false;
-                StopCoroutine(Attack());
-            }
-        }
-    }
- 
-    private void OnTriggerStay2D(Collider2D collider)
-    {
-        if(collider.tag == "Player" && !entity.dead)
-        {
-            entity.inCombat = true;
-            entity.target = collider.gameObject;
-            entity.target.GetComponent<BoxCollider2D>().isTrigger = true;
-        }   
-    }
- 
-    private void OnTriggerExit2D(Collider2D collider)
-    {
-        if (collider.tag == "Player")
-        {
             entity.inCombat = false;
-            if (entity.target)
-            {
-                entity.target.GetComponent<BoxCollider2D>().isTrigger = false;
-                entity.target = null;
-            }
+            if (waypointList.Count > 0)
+                Patrol();
+            else
+                anim.SetBool("isWalking", false);
         }
     }
- 
+
+    private void FixedUpdate()
+    {
+        
+        if (manager != null && manager.paused)
+            return;
+
+        
+        rb2D.MovePosition(rb2D.position + movement * (entity.speed * Time.fixedDeltaTime));
+    }
+
     void Patrol()
     {
-        if (entity.dead)
-            return;
- 
-        // calcular a distance do waypoint
-        float distanceToTarget = Vector2.Distance(transform.position, targetWapoint.position);
- 
-        if(distanceToTarget <= arrivalDistance || distanceToTarget >= lastDistanceToTarget)
+        if (targetWaypoint == null) return;
+
+        float distanceToTarget = Vector2.Distance(transform.position, targetWaypoint.position);
+
+        if (distanceToTarget <= arrivalDistance || distanceToTarget >= lastDistanceToTarget)
         {
-            animator.SetBool("isWalking", false);
- 
-            if(currentWaitTime <= 0)
+            anim.SetBool("isWalking", false);
+
+            if (currentWaitTime <= 0)
             {
                 currentWaypoint++;
- 
                 if (currentWaypoint >= waypointList.Count)
                     currentWaypoint = 0;
- 
-                targetWapoint = waypointList[currentWaypoint];
-                lastDistanceToTarget = Vector2.Distance(transform.position, targetWapoint.position);
- 
+
+                targetWaypoint = waypointList[currentWaypoint];
+                lastDistanceToTarget = Vector2.Distance(transform.position, targetWaypoint.position);
                 currentWaitTime = waitTime;
             }
             else
             {
                 currentWaitTime -= Time.deltaTime;
             }
+            movement = Vector2.zero;
         }
         else
         {
-            animator.SetBool("isWalking", true);
+            anim.SetBool("isWalking", true);
             lastDistanceToTarget = distanceToTarget;
+
+            Vector2 direction = (targetWaypoint.position - transform.position).normalized;
+            anim.SetFloat("input_x", direction.x);
+            anim.SetFloat("input_y", direction.y);
+
+            movement = direction;
         }
- 
-        Vector2 direction = (targetWapoint.position - transform.position).normalized;
-        animator.SetFloat("input_x", direction.x);
-        animator.SetFloat("input_y", direction.y);
- 
-        rb2D.MovePosition(rb2D.position + direction * (entity.speed * Time.fixedDeltaTime));
     }
- 
-    IEnumerator Attack()
+
+    void MoveTowardsTarget(Transform target)
     {
-        entity.combatCoroutine = true;
- 
-        while (true)
+        if (target == null) return;
+
+        Vector2 direction = (target.position - transform.position).normalized;
+
+        RaycastHit2D hit = Physics2D.Raycast(transform.position, direction, 1f, LayerMask.GetMask("Obstacles"));
+        if (hit.collider != null)
         {
-            yield return new WaitForSeconds(entity.cooldown);
- 
-            if (entity.target != null && !entity.target.GetComponent<Player>().entity.dead)
+            // Tenta desviar um pouco
+            Vector2 perpendicular = Vector2.Perpendicular(direction);
+            Vector2 avoidDir = (direction + perpendicular * 0.5f).normalized;
+
+            direction = avoidDir;
+        }
+
+        movement = direction;
+        anim.SetBool("isWalking", true);
+        anim.SetFloat("input_x", direction.x);
+        anim.SetFloat("input_y", direction.y);
+
+        rb2D.MovePosition(rb2D.position + movement * (entity.speed * Time.fixedDeltaTime));
+    }
+
+    IEnumerator Attack(Transform target)
+    {
+        canAttack = false;
+        anim.SetTrigger("attack");
+
+        yield return new WaitForSeconds(0.3f); 
+
+        if (target != null)
+        {
+            Player playerComponent = target.GetComponent<Player>();
+            if (playerComponent != null && !playerComponent.entity.dead)
             {
-                animator.SetBool("attack", true);
- 
-                float distance = Vector2.Distance(entity.target.transform.position, transform.position);
- 
-                if (distance <= entity.attackDistance)
-                {
-                    int dmg = manager.CalculateDamage(entity, entity.damage);
-                    int targetDef = manager.CalculateDefense(entity.target.GetComponent<Player>().entity, entity.target.GetComponent<Player>().entity.defense);
-                    int dmgResult = dmg - targetDef;
- 
-                    if (dmgResult < 0)
-                        dmgResult = 0;
- 
-                    Debug.Log("Inimigo atacou o player, Dmg: " + dmgResult);
-                    entity.target.GetComponent<Player>().entity.currentHealth -= dmgResult;
-                }
+                int dmg = manager.CalculateDamage(entity, damage);
+                int def = manager.CalculateDefense(playerComponent.entity, playerComponent.entity.defense);
+                int dmgResult = Mathf.Max(dmg - def, 0);
+
+                Debug.Log($"{entity.name} atacou {playerComponent.name} causando {dmgResult} de dano.");
+                playerComponent.entity.TakeDamage(dmgResult);
             }
         }
+
+        yield return new WaitForSeconds(attackCooldown);
+        canAttack = true;
     }
- 
-    void Die()
+
+    void Flip(float directionX)
     {
-        entity.dead = true;
-        entity.inCombat = false;
-        entity.target = null;
- 
-        animator.SetBool("isWalking", false);
- 
-        // add exp no player
-        Player player = GameObject.FindGameObjectWithTag("Player").GetComponent<Player>();
-        player.GainExp(rewardExperience);
- 
-        Debug.Log("O inimigo morreu: " + entity.name);
- 
-        StopAllCoroutines();
-        StartCoroutine(Respawn());
+        Vector3 scale = transform.localScale;
+        if (directionX > 0) scale.x = Mathf.Abs(scale.x);
+        else if (directionX < 0) scale.x = Mathf.Abs(scale.x);
+        transform.localScale = scale;
     }
- 
+
+    public void Die()
+    {
+        if (entity.dead) return;
+        entity.dead = true;
+
+        anim.SetTrigger("die");
+        anim.SetBool("isWalking", false);
+        movement = Vector2.zero;
+
+        Player player = GameObject.FindGameObjectWithTag("Player")?.GetComponent<Player>();
+        if (player != null)
+                player.GainExp(entity.expReward);
+
+        Debug.Log($"Inimigo {entity.name} morreu e deu {entity.expReward} de XP.");
+
+        OnMonsterDied?.Invoke(this);
+
+        StopAllCoroutines();
+        if (respawn && !FindObjectOfType<LevelProgression>())
+            StartCoroutine(Respawn());
+        else
+            Destroy(gameObject, 2f);
+    }
+
     IEnumerator Respawn()
     {
         yield return new WaitForSeconds(respawnTime);
- 
-        GameObject newMonster = Instantiate(prefab, transform.position, transform.rotation, null);
+
+        GameObject newMonster = Instantiate(prefab, transform.position, transform.rotation);
         newMonster.name = prefab.name;
-        newMonster.GetComponent<Monster>().entity.dead = false;
-        newMonster.GetComponent<Monster>().entity.combatCoroutine = false;
- 
-        Destroy(this.gameObject);
+        Destroy(gameObject);
     }
+
+    void OnEnable()
+    {
+        aliveMonsters++;
+        OnAliveMonstersChanged?.Invoke(aliveMonsters);
+        OnMonsterSpawned?.Invoke(this);
+    }
+
+    void OnDisable()
+    {
+        
+        if (entity != null && !entity.dead)
+        {
+            aliveMonsters = Mathf.Max(0, aliveMonsters - 1);
+            OnAliveMonstersChanged?.Invoke(aliveMonsters);
+        }
+    }
+
 }
- 

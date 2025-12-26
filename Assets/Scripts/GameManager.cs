@@ -1,44 +1,74 @@
 ﻿using System;
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
+using System.Collections;
+
 
 public class GameManager : MonoBehaviour
 {
-    public Int32 CalculateHealth(Entity entity)
+    [Header("Intro Start")]
+    public bool paused = false;
+    public GameObject introTextObject;
+    public int blinkCount = 3;
+    public float blinkOn = 0.5f;
+    public float blinkOff = 0.3f;
+
+    void Start()
     {
-        //Formula ((resistence * 10) + (level * 4) + 10)
-        Int32 result = (entity.resistence * 10) + (entity.level * 4) + 10;
-        Debug.LogFormat("CalculateHealth: {0}", result);
+        StartCoroutine(IntroSequence());
+    }
+
+    IEnumerator IntroSequence()
+    {
+        paused = true;
+
+        if (introTextObject != null)
+        {
+            introTextObject.SetActive(false);
+
+            for (int i = 0; i < blinkCount; i++)
+            {
+                introTextObject.SetActive(true);
+                yield return new WaitForSecondsRealtime(blinkOn);
+
+                introTextObject.SetActive(false);
+                yield return new WaitForSecondsRealtime(blinkOff);
+            }
+        }
+
+        paused = false;
+    }
+
+    // ----- CALCULOS DE ATRIBUTOS -----
+
+    public int CalculateHealth(Entity entity)
+    {
+        int result = (entity.resistence * 10) + (entity.level * 4) + 10;
         return result;
     }
-    public Int32 CalculateMana(Entity entity)
+
+    public int CalculateMana(Entity entity)
     {
-        //Formula ((intelligence * 10) + (level * 4) + 5)
-        Int32 result = (entity.intelligence * 10) + (entity.level * 4) + 5;
-        Debug.LogFormat("CalculateMana: {0}", result);
+        int result = (entity.intelligence * 10) + (entity.level * 4) + 5;
         return result;
     }
-    public Int32 CalculateStamina(Entity entity)
+
+    public int CalculateStamina(Entity entity)
     {
-        //Formula ((resistence * willpower) + (level * 4) + 5)
-        Int32 result = (entity.resistence + entity.willpower) + (entity.level * 2) + 5;
-        Debug.LogFormat("CalculateStamina: {0}", result);
+        int result = (entity.resistence + entity.willpower) + (entity.level * 2) + 5;
         return result;
     }
-    public Int32 CalculateDamage(Entity entity, int weaponDamage)
+
+    public int CalculateDamage(Entity entity, int weaponDamage)
     {
-        //Formula (str * 2) + (weapon dmg * 2) + (level * 3) + random(1-20)
         System.Random rnd = new System.Random();
-        Int32 result = (entity.strength * 2) + (weaponDamage * 2) + (entity.level * 3) + rnd.Next(1,20);
-        Debug.LogFormat("CalculateDamage: {0}", result);
+        int result = (entity.strength * 2) + (weaponDamage * 2) + (entity.level * 3) + rnd.Next(1, 20);
         return result;
     }
-    public Int32 CalculateDefense(Entity entity, int armorDefense)
+
+    public int CalculateDefense(Entity entity, int armorDefense)
     {
-        //Formula (endurece * 2) + (level * 3) + armorDefense
-        Int32 result = (entity.resistence * 2) + (entity.level * 3) + armorDefense;
-        Debug.LogFormat("CalculateDefense: {0}", result);
+        int result = (entity.resistence * 2) + (entity.level * 3) + armorDefense;
         return result;
     }
 }

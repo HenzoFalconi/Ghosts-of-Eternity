@@ -1,5 +1,35 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
+--- !u!1 &20018263
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 20018264}
+  m_Layer: 0
+  m_Name: FirePoint
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &20018264
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 20018263}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.263, y: -0.511, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children: []
+  m_Father: {fileID: 9205301277424592755}
+  m_RootOrder: 1
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &519420028
 GameObject:
   m_ObjectHideFlags: 0
@@ -119,6 +149,7 @@ Transform:
   m_LocalScale: {x: 0.32, y: 0.32, z: 0.32}
   m_Children:
   - {fileID: 519420032}
+  - {fileID: 20018264}
   m_Father: {fileID: 0}
   m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -206,6 +237,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   player: {fileID: 0}
   playerAnimator: {fileID: 9205301277424592753}
+  interactKey: 101
+  firePoint: {fileID: 20018264}
+  bulletPrefab: {fileID: 9089332739035716587, guid: d1d1ce4e7ad817f4aa37bfabd98a991e,
+    type: 3}
 --- !u!61 &9205301277424592716
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -274,13 +309,14 @@ MonoBehaviour:
     maxMana: 100
     currentStamina: 100
     maxStamina: 100
-    strength: 1
+    strength: 5
     resistence: 5
-    intelligence: 3
-    willpower: 1
+    intelligence: 5
+    willpower: 5
     damage: 1
     defense: 1
     speed: 1.5
+    points: 0
     attackDistance: 0.5
     attackTimer: 1
     cooldown: 2
@@ -288,27 +324,54 @@ MonoBehaviour:
     target: {fileID: 0}
     combatCoroutine: 0
     dead: 0
+    maxAmmo: 10
+    currentAmmo: 10
+    reserveAmmo: 0
+    bulletRange: 10
     entityAudio: {fileID: 6045244276266629091}
+    healthBar: {fileID: 0}
+    expReward: 100
+    goldReward: 0
   regenHPEnabled: 1
   regenHPTime: 5
   regenHPValue: 5
   regenMPEnabled: 1
   regenMPTime: 10
   regenMPValue: 5
+  maxAmmo: 10
+  currentAmmo: 10
+  reserveAmmo: 20
+  bulletRange: 10
   manager: {fileID: 0}
+  attributesKey: 9
+  attributesPanel: {fileID: 0}
   health: {fileID: 0}
   mana: {fileID: 0}
   stamina: {fileID: 0}
   exp: {fileID: 0}
   expText: {fileID: 0}
   levelText: {fileID: 0}
+  strTxt: {fileID: 0}
+  resTxt: {fileID: 0}
+  intTxt: {fileID: 0}
+  wilTxt: {fileID: 0}
+  strPositiveBtn: {fileID: 0}
+  resPositiveBtn: {fileID: 0}
+  intPositiveBtn: {fileID: 0}
+  wilPositiveBtn: {fileID: 0}
+  strNegativeBtn: {fileID: 0}
+  resNegativeBtn: {fileID: 0}
+  intNegativeBtn: {fileID: 0}
+  wilNegativeBtn: {fileID: 0}
+  pointsTxt: {fileID: 0}
   currentExp: 0
-  expBase: 0
+  expBase: 150
   expLeft: 150
-  expMod: 1
+  expMod: 1.75
   levelUpFX: {fileID: 5603060825099145450, guid: b7fca7a6aa3363f4ba19b18079e33fba,
     type: 3}
   levelUpSound: {fileID: 8300000, guid: 5908707e16e395c4983b417b7c883a91, type: 3}
+  givePoints: 5
   respawnTime: 10
   prefab: {fileID: 9205301277424592759}
 --- !u!70 &2013550591
@@ -324,8 +387,8 @@ CapsuleCollider2D:
   m_IsTrigger: 1
   m_UsedByEffector: 0
   m_UsedByComposite: 0
-  m_Offset: {x: 0, y: 0}
-  m_Size: {x: 2.8, y: 2.8}
+  m_Offset: {x: 0, y: -0.25}
+  m_Size: {x: 0.6, y: 1.3}
   m_Direction: 0
 --- !u!82 &6045244276266629091
 AudioSource:
